@@ -1,0 +1,549 @@
+﻿<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>香港薪俸税计算器 2025/26 | 完整动态选项</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            margin: 0;
+            padding: 24px 16px;
+            background: #eef2f5;
+            color: #1e293b;
+        }
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        .main-card {
+            background: white;
+            border-radius: 28px;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+            padding: 24px 28px 36px;
+        }
+        h1 {
+            font-size: 1.9rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #0f3b2c, #1e7b4b);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin: 0 0 8px 0;
+        }
+        .sub {
+            color: #475569;
+            border-left: 4px solid #2c9e6b;
+            padding-left: 16px;
+            margin-bottom: 28px;
+            font-size: 0.95rem;
+        }
+        .grid-2col {
+            display: flex;
+            gap: 28px;
+            flex-wrap: wrap;
+        }
+        .spouse-card {
+            flex: 1;
+            background: #fefcf5;
+            border-radius: 24px;
+            padding: 20px;
+            border: 1px solid #e9ecef;
+            transition: 0.2s;
+        }
+        .spouse-card h3 {
+            font-weight: 700;
+            margin-top: 0;
+            margin-bottom: 18px;
+            font-size: 1.5rem;
+            color: #1f4f3a;
+            border-bottom: 2px solid #cbd5e1;
+            padding-bottom: 8px;
+        }
+        .form-group {
+            margin-bottom: 14px;
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            font-size: 0.85rem;
+            margin-bottom: 6px;
+            color: #2c3e2f;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: 16px;
+            border: 1px solid #cfdfd7;
+            background: white;
+            font-size: 0.95rem;
+        }
+        .inline-check {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 6px;
+            flex-wrap: wrap;
+        }
+        .inline-check label {
+            margin-bottom: 0;
+            font-weight: normal;
+        }
+        .hint {
+            font-size: 0.7rem;
+            color: #62748c;
+            margin-top: 5px;
+        }
+        .warning {
+            background: #fff0f0;
+            padding: 6px 10px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            color: #b91c1c;
+            margin-top: 5px;
+        }
+        .action-bar {
+            margin: 32px 0 24px;
+            display: flex;
+            justify-content: center;
+        }
+        .calc-btn {
+            background: #1e7b4b;
+            border: none;
+            padding: 14px 32px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: white;
+            border-radius: 60px;
+            cursor: pointer;
+            min-width: 240px;
+        }
+        .calc-btn:hover {
+            background: #0f5a38;
+        }
+        .results-area {
+            margin-top: 32px;
+        }
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            margin-bottom: 24px;
+        }
+        .summary-table th, .summary-table td {
+            border: 1px solid #e2e8f0;
+            padding: 12px 8px;
+            text-align: center;
+            font-size: 0.85rem;
+        }
+        .summary-table th {
+            background: #e9f3ef;
+            font-weight: 700;
+            color: #145c3a;
+        }
+        .detail-card {
+            background: #f8fafc;
+            border-radius: 20px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            border-left: 6px solid #2c9e6b;
+            font-size: 0.85rem;
+            overflow-x: auto;
+        }
+        .detail-card h4 {
+            margin: 0 0 12px 0;
+            font-weight: 700;
+            color: #0f3b2c;
+        }
+        .calc-step {
+            font-family: monospace;
+            font-size: 0.8rem;
+            margin: 6px 0;
+        }
+        .note {
+            background: #fef9e3;
+            padding: 14px 20px;
+            border-radius: 20px;
+            margin-top: 24px;
+            font-size: 0.8rem;
+        }
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 0.7rem;
+            color: #5b6e8c;
+        }
+        details {
+            margin-top: 12px;
+        }
+        summary {
+            font-weight: 700;
+            cursor: pointer;
+            color: #1e7b4b;
+        }
+        hr {
+            margin: 16px 0;
+        }
+        @media (max-width: 800px) {
+            .main-card { padding: 16px; }
+            .spouse-card { padding: 16px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="main-card">
+        <h1>🧾 香港薪俸税计算器 2025/26</h1>
+        <div class="sub">
+            ✔ 分开 vs 合并报税 · 累进税率（应课税入息实额） vs 标准税率（入息净额，不减免税额）取低<br>
+            ✔ 2025/26课税年度：100%税款宽减，分开报税每人上限$3,000，合并报税二人合共上限$3,000<br>
+            ✔ 动态选项：子女出生年份（额外免税额）、父母年龄分段+同住免税额、伤残受养人（与父母免税额互斥）<br>
+            ✔ 住宅租金扣除（基本$100k / 额外$120k） · 公司房屋福利（付还租金+租值）
+        </div>
+
+        <div class="grid-2col">
+            <!-- 配偶 A -->
+            <div class="spouse-card">
+                <h3>👤 配偶 A</h3>
+                <div class="form-group"><label>年收入 (HKD)</label><input type="number" id="incomeA" value="500000"></div>
+                <div class="form-group"><label>🏠 每月实际租金 (HKD)</label><input type="number" id="rentA" value="20000"></div>
+                <div class="form-group"><div class="inline-check"><input type="checkbox" id="extraRentA"> <label>☑ 住宅租金额外扣除（上限$120,000）</label></div></div>
+                
+                <!-- 子女部分 -->
+                <div class="form-group"><label>👶 子女人数 (每名基本免税额 $130,000)</label><input type="number" id="childCountA" min="0" value="0" step="1"></div>
+                <div class="form-group"><div class="inline-check"><input type="checkbox" id="childBornA"> <label>☑ 有子女在本课税年度出生 (每名额外 $130,000)</label></div><div class="hint">出生年度子女可获额外免税额，即合计 $260,000/名</div></div>
+
+                <!-- 父母/祖父母分段 -->
+                <div class="form-group"><label>🧓 供养父母/祖父母人数 (55-59岁) 每名 $25,000</label><input type="number" id="parent55CountA" min="0" value="0" step="1"></div>
+                <div class="form-group"><div class="inline-check"><input type="checkbox" id="parent55LiveA"> <label>☑ 55-59岁父母全年同住 (额外 $25,000/名)</label></div></div>
+                <div class="form-group"><label>🧓 供养父母/祖父母人数 (60岁或以上) 每名 $50,000</label><input type="number" id="parent60CountA" min="0" value="0" step="1"></div>
+                <div class="form-group"><div class="inline-check"><input type="checkbox" id="parent60LiveA"> <label>☑ 60岁+父母全年同住 (额外 $50,000/名)</label></div></div>
+
+                <!-- 伤残受养人（与父母免税额互斥提示） -->
+                <div class="form-group"><label>♿ 伤残受养人人数 (每名 $75,000，不能与父母免税额同时申索同一受养人)</label><input type="number" id="disabledCountA" min="0" value="0" step="1"></div>
+
+                <!-- 其他扣除 -->
+                <div class="form-group"><label>📚 个人进修开支 (上限$100,000)</label><input type="number" id="selfEduA" value="0"></div>
+                <div class="form-group"><label>🏥 长者住宿照顾开支 (上限$100,000)</label><input type="number" id="elderlyCareA" value="0"></div>
+                <div class="form-group"><label>❤️ 慈善捐款 (上限应评税入息35%)</label><input type="number" id="donationA" value="0"></div>
+                <div class="form-group"><label>💊 自愿医保保费 (每受保人$8,000)</label><input type="number" id="vhisA" value="0"></div>
+                <div class="form-group"><label>📈 年金+TVC (共用上限$60,000)</label><input type="number" id="annuityA" value="0"></div>
+                <div class="form-group"><label>💼 强积金MPF (最多扣$18,000)</label><input type="number" id="mpfA" value="18000"></div>
+            </div>
+
+            <!-- 配偶 B -->
+            <div class="spouse-card">
+                <h3>👩‍💼 配偶 B</h3>
+                <div class="form-group"><label>年收入 (HKD)</label><input type="number" id="incomeB" value="300000"></div>
+                <div class="form-group"><label>🏠 每月实际租金 (HKD)</label><input type="number" id="rentB" value="15000"></div>
+                <div class="form-group"><div class="inline-check"><input type="checkbox" id="extraRentB"> <label>☑ 住宅租金额外扣除（上限$120,000）</label></div></div>
+                
+                <div class="form-group"><label>👶 子女人数 (每名基本免税额 $130,000)</label><input type="number" id="childCountB" min="0" value="0" step="1"></div>
+                <div class="form-group"><div class="inline-check"><input type="checkbox" id="childBornB"> <label>☑ 有子女在本课税年度出生 (每名额外 $130,000)</label></div></div>
+
+                <div class="form-group"><label>🧓 供养父母/祖父母人数 (55-59岁) 每名 $25,000</label><input type="number" id="parent55CountB" min="0" value="0" step="1"></div>
+                <div class="form-group"><div class="inline-check"><input type="checkbox" id="parent55LiveB"> <label>☑ 55-59岁父母全年同住 (额外 $25,000/名)</label></div></div>
+                <div class="form-group"><label>🧓 供养父母/祖父母人数 (60岁或以上) 每名 $50,000</label><input type="number" id="parent60CountB" min="0" value="0" step="1"></div>
+                <div class="form-group"><div class="inline-check"><input type="checkbox" id="parent60LiveB"> <label>☑ 60岁+父母全年同住 (额外 $50,000/名)</label></div></div>
+
+                <div class="form-group"><label>♿ 伤残受养人人数 (每名 $75,000，不能与父母免税额同时申索)</label><input type="number" id="disabledCountB" min="0" value="0" step="1"></div>
+
+                <div class="form-group"><label>📚 个人进修开支 (上限$100,000)</label><input type="number" id="selfEduB" value="0"></div>
+                <div class="form-group"><label>🏥 长者住宿照顾开支 (上限$100,000)</label><input type="number" id="elderlyCareB" value="0"></div>
+                <div class="form-group"><label>❤️ 慈善捐款 (上限应评税入息35%)</label><input type="number" id="donationB" value="0"></div>
+                <div class="form-group"><label>💊 自愿医保保费 (每受保人$8,000)</label><input type="number" id="vhisB" value="0"></div>
+                <div class="form-group"><label>📈 年金+TVC (共用上限$60,000)</label><input type="number" id="annuityB" value="0"></div>
+                <div class="form-group"><label>💼 强积金MPF (最多扣$18,000)</label><input type="number" id="mpfB" value="18000"></div>
+            </div>
+        </div>
+
+        <div class="action-bar">
+            <button class="calc-btn" onclick="computeAll()">📊 计算并显示详细过程</button>
+        </div>
+
+        <div id="resultsPanel" style="display: none;"></div>
+        <footer>依据2025/26课税年度免税额及宽减规则。子女出生额外免税额、父母同住额外免税额、伤残受养人均已纳入。伤残与父母免税额互斥请自行注意。</footer>
+    </div>
+</div>
+
+<script>
+    // 累进税阶
+    const PROG_BRACKETS = [
+        { limit: 50000, rate: 0.02 },
+        { limit: 50000, rate: 0.06 },
+        { limit: 50000, rate: 0.10 },
+        { limit: 50000, rate: 0.14 },
+        { limit: Infinity, rate: 0.17 }
+    ];
+    const STD_RATE = 0.15;
+    const WAIVER_CAP_SINGLE = 3000;     // 分开报税每人上限
+    const WAIVER_CAP_JOINT = 3000;      // 合并报税二人合共上限
+
+    function calcProgressive(income) {
+        if (income <= 0) return 0;
+        let tax = 0, remain = income;
+        for (let b of PROG_BRACKETS) {
+            let taxable = Math.min(remain, b.limit);
+            tax += taxable * b.rate;
+            remain -= taxable;
+            if (remain <= 0) break;
+        }
+        return tax;
+    }
+
+    function calcStandardTax(netIncome) {
+        if (netIncome <= 0) return 0;
+        return netIncome * STD_RATE;
+    }
+
+    // 计算个人免税额合计（基本 + 子女 + 父母分段+同住 + 伤残受养人）
+    function getAllowances(person) {
+        let basic = 132000;
+        
+        // 子女免税额：基本130k/名 + 出生额外130k/名（如果勾选）
+        let childBasic = (person.childCount || 0) * 130000;
+        let childExtra = 0;
+        if (person.childBorn && person.childCount > 0) {
+            childExtra = person.childCount * 130000;  // 每名出生子女额外130k
+        }
+        let childTotal = childBasic + childExtra;
+        
+        // 父母/祖父母免税额
+        // 55-59岁: 基础 25000/名；同住额外 25000/名
+        let parent55Base = (person.parent55Count || 0) * 25000;
+        let parent55Extra = (person.parent55Live ? (person.parent55Count || 0) * 25000 : 0);
+        // 60岁及以上: 基础 50000/名；同住额外 50000/名
+        let parent60Base = (person.parent60Count || 0) * 50000;
+        let parent60Extra = (person.parent60Live ? (person.parent60Count || 0) * 50000 : 0);
+        let parentTotal = parent55Base + parent55Extra + parent60Base + parent60Extra;
+        
+        // 伤残受养人免税额: 75000/名 (注意：与父母免税额互斥，但代码中不做强制限制，提示用户)
+        let disabledTotal = (person.disabledCount || 0) * 75000;
+        
+        return basic + childTotal + parentTotal + disabledTotal;
+    }
+
+    // 其他特惠扣除 (进修、长者照顾、自愿医保、年金、慈善捐款)
+    function getOtherDeductions(person, assessableBeforeOther) {
+        const selfEdu = Math.min(person.selfEdu || 0, 100000);
+        const elderlyCare = Math.min(person.elderlyCare || 0, 100000);
+        const vhis = Math.min(person.vhis || 0, 8000);
+        const annuity = Math.min(person.annuity || 0, 60000);
+        let donation = person.donation || 0;
+        const maxDonation = assessableBeforeOther * 0.35;
+        const charity = Math.min(donation, maxDonation);
+        return selfEdu + elderlyCare + vhis + annuity + charity;
+    }
+
+    // ========== 租金扣除模式 ==========
+    function getRentDeduction(monthlyRent, extraSelected) {
+        const annual = monthlyRent * 12;
+        const cap = extraSelected ? 120000 : 100000;
+        return Math.min(annual, cap);
+    }
+    function getAssessableBeforeOtherRent(income, monthlyRent, extra) {
+        const rentDed = getRentDeduction(monthlyRent, extra);
+        return Math.max(0, income - rentDed);
+    }
+
+    // ========== 公司福利模式 ==========
+    function getAssessableBeforeOtherCompany(income, monthlyRent) {
+        const annualRent = monthlyRent * 12;
+        const monthlySalary = income / 12;
+        const maxReimburse = monthlySalary * 0.5 * 12;
+        const reimburse = Math.min(annualRent, maxReimburse);
+        const afterReimburse = Math.max(0, income - reimburse);
+        const excess = Math.max(0, annualRent - reimburse);
+        let rentalValue = afterReimburse * 0.10 - excess;
+        rentalValue = Math.max(0, rentalValue);
+        return afterReimburse + rentalValue;
+    }
+
+    // 个人税款计算 (返回详细数据)
+    function computeIndividualTax(assessableBeforeOther, allowances, otherDed, mpf) {
+        const mpfDed = Math.min(mpf, 18000);
+        const chargeable = Math.max(0, assessableBeforeOther - allowances - otherDed - mpfDed);
+        const progressiveTax = calcProgressive(chargeable);
+        const netIncomeForStandard = Math.max(0, assessableBeforeOther - otherDed - mpfDed);
+        const standardTax = calcStandardTax(netIncomeForStandard);
+        const bestBeforeWaiver = Math.min(progressiveTax, standardTax);
+        const afterWaiver = Math.max(0, bestBeforeWaiver - WAIVER_CAP_SINGLE);
+        return {
+            chargeable, progressiveTax, standardTax, netIncomeForStandard,
+            bestBeforeWaiver, afterWaiver,
+            assessableBeforeOther, allowances, otherDed, mpfDed
+        };
+    }
+
+    // 合并报税租金
+    function computeJointRent(pA, pB, extraA, extraB) {
+        const assessA = getAssessableBeforeOtherRent(pA.income, pA.monthlyRent, extraA);
+        const assessB = getAssessableBeforeOtherRent(pB.income, pB.monthlyRent, extraB);
+        const totalAssess = assessA + assessB;
+        const allowancesTotal = getAllowances(pA) + getAllowances(pB);
+        const otherTotal = getOtherDeductions(pA, assessA) + getOtherDeductions(pB, assessB);
+        const mpfTotal = Math.min(pA.mpf,18000) + Math.min(pB.mpf,18000);
+        const chargeable = Math.max(0, totalAssess - allowancesTotal - otherTotal - mpfTotal);
+        const progressiveTax = calcProgressive(chargeable);
+        const netIncomeForStandard = Math.max(0, totalAssess - otherTotal - mpfTotal);
+        const standardTax = calcStandardTax(netIncomeForStandard);
+        const bestBeforeWaiver = Math.min(progressiveTax, standardTax);
+        const afterWaiver = Math.max(0, bestBeforeWaiver - WAIVER_CAP_JOINT);
+        return { chargeable, progressiveTax, standardTax, netIncomeForStandard, bestBeforeWaiver, afterWaiver,
+                 totalAssess, allowancesTotal, otherTotal, mpfTotal };
+    }
+
+    // 合并报税公司福利
+    function computeJointCompany(pA, pB) {
+        const assessA = getAssessableBeforeOtherCompany(pA.income, pA.monthlyRent);
+        const assessB = getAssessableBeforeOtherCompany(pB.income, pB.monthlyRent);
+        const totalAssess = assessA + assessB;
+        const allowancesTotal = getAllowances(pA) + getAllowances(pB);
+        const otherTotal = getOtherDeductions(pA, assessA) + getOtherDeductions(pB, assessB);
+        const mpfTotal = Math.min(pA.mpf,18000) + Math.min(pB.mpf,18000);
+        const chargeable = Math.max(0, totalAssess - allowancesTotal - otherTotal - mpfTotal);
+        const progressiveTax = calcProgressive(chargeable);
+        const netIncomeForStandard = Math.max(0, totalAssess - otherTotal - mpfTotal);
+        const standardTax = calcStandardTax(netIncomeForStandard);
+        const bestBeforeWaiver = Math.min(progressiveTax, standardTax);
+        const afterWaiver = Math.max(0, bestBeforeWaiver - WAIVER_CAP_JOINT);
+        return { chargeable, progressiveTax, standardTax, netIncomeForStandard, bestBeforeWaiver, afterWaiver,
+                 totalAssess, allowancesTotal, otherTotal, mpfTotal };
+    }
+
+    // 分开报税总额租金
+    function separateRent(pA, pB, extraA, extraB) {
+        const assessA = getAssessableBeforeOtherRent(pA.income, pA.monthlyRent, extraA);
+        const assessB = getAssessableBeforeOtherRent(pB.income, pB.monthlyRent, extraB);
+        const taxA = computeIndividualTax(assessA, getAllowances(pA), getOtherDeductions(pA, assessA), pA.mpf);
+        const taxB = computeIndividualTax(assessB, getAllowances(pB), getOtherDeductions(pB, assessB), pB.mpf);
+        return { totalBest: taxA.afterWaiver + taxB.afterWaiver, totalBefore: taxA.bestBeforeWaiver + taxB.bestBeforeWaiver,
+                 taxA, taxB };
+    }
+    // 分开报税总额公司
+    function separateCompany(pA, pB) {
+        const assessA = getAssessableBeforeOtherCompany(pA.income, pA.monthlyRent);
+        const assessB = getAssessableBeforeOtherCompany(pB.income, pB.monthlyRent);
+        const taxA = computeIndividualTax(assessA, getAllowances(pA), getOtherDeductions(pA, assessA), pA.mpf);
+        const taxB = computeIndividualTax(assessB, getAllowances(pB), getOtherDeductions(pB, assessB), pB.mpf);
+        return { totalBest: taxA.afterWaiver + taxB.afterWaiver, totalBefore: taxA.bestBeforeWaiver + taxB.bestBeforeWaiver,
+                 taxA, taxB };
+    }
+
+    // 渲染
+    function renderDetailCard(title, taxDetail) {
+        return `<div class="detail-card"><h4>📌 ${title}</h4>
+            <div class="calc-step">① 应评税入息: $${taxDetail.assessableBeforeOther.toLocaleString()}</div>
+            <div class="calc-step">② 免税额: $${taxDetail.allowances.toLocaleString()}</div>
+            <div class="calc-step">③ 其他特惠扣除: $${taxDetail.otherDed.toLocaleString()}</div>
+            <div class="calc-step">④ MPF扣减: $${taxDetail.mpfDed.toLocaleString()}</div>
+            <div class="calc-step">⑤ 应课税入息实额 = ①−②−③−④ = $${taxDetail.chargeable.toLocaleString()}</div>
+            <div class="calc-step">⑥ 累进税率税款: $${taxDetail.progressiveTax.toLocaleString()}</div>
+            <div class="calc-step">⑦ 入息净额(标准税基) = ①−③−④ = $${taxDetail.netIncomeForStandard.toLocaleString()}</div>
+            <div class="calc-step">⑧ 标准税率税款(15%): $${taxDetail.standardTax.toLocaleString()}</div>
+            <div class="calc-step">⑨ 宽减前税款(取较低): $${taxDetail.bestBeforeWaiver.toLocaleString()}</div>
+            <div class="calc-step">⑩ 分开报税宽减(上限$3,000/人): 减 ${Math.min(taxDetail.bestBeforeWaiver,3000).toLocaleString()} → <strong>最终: $${taxDetail.afterWaiver.toLocaleString()}</strong></div>
+        </div>`;
+    }
+
+    function renderJointCard(title, jointData) {
+        return `<div class="detail-card"><h4>📌 ${title}</h4>
+            <div class="calc-step">① 双方应评税入息总额: $${jointData.totalAssess.toLocaleString()}</div>
+            <div class="calc-step">② 免税额总额: $${jointData.allowancesTotal.toLocaleString()}</div>
+            <div class="calc-step">③ 其他扣除总额: $${jointData.otherTotal.toLocaleString()}</div>
+            <div class="calc-step">④ MPF总额: $${jointData.mpfTotal.toLocaleString()}</div>
+            <div class="calc-step">⑤ 应课税入息实额 = ①−②−③−④ = $${jointData.chargeable.toLocaleString()}</div>
+            <div class="calc-step">⑥ 累进税率税款: $${jointData.progressiveTax.toLocaleString()}</div>
+            <div class="calc-step">⑦ 入息净额(标准税基) = ①−③−④ = $${jointData.netIncomeForStandard.toLocaleString()}</div>
+            <div class="calc-step">⑧ 标准税率税款(15%): $${jointData.standardTax.toLocaleString()}</div>
+            <div class="calc-step">⑨ 宽减前税款(取较低): $${jointData.bestBeforeWaiver.toLocaleString()}</div>
+            <div class="calc-step">⑩ 合并评税宽减(二人合共$3,000): 减 ${Math.min(jointData.bestBeforeWaiver,3000).toLocaleString()} → <strong>最终: $${jointData.afterWaiver.toLocaleString()}</strong></div>
+            <div class="calc-step warning">⚠️ 合并报税宽减上限为二人合共 $3,000，不是每人 $1,500。</div>
+        </div>`;
+    }
+
+    function computeAll() {
+        const getNum = (id) => parseFloat(document.getElementById(id)?.value) || 0;
+        const getInt = (id) => parseInt(document.getElementById(id)?.value) || 0;
+        const getCheck = (id) => document.getElementById(id)?.checked || false;
+
+        function buildPerson(prefix) {
+            return {
+                income: getNum(`income${prefix}`),
+                monthlyRent: getNum(`rent${prefix}`),
+                childCount: getInt(`childCount${prefix}`),
+                childBorn: getCheck(`childBorn${prefix}`),
+                parent55Count: getInt(`parent55Count${prefix}`),
+                parent55Live: getCheck(`parent55Live${prefix}`),
+                parent60Count: getInt(`parent60Count${prefix}`),
+                parent60Live: getCheck(`parent60Live${prefix}`),
+                disabledCount: getInt(`disabledCount${prefix}`),
+                selfEdu: getNum(`selfEdu${prefix}`),
+                elderlyCare: getNum(`elderlyCare${prefix}`),
+                donation: getNum(`donation${prefix}`),
+                vhis: getNum(`vhis${prefix}`),
+                annuity: getNum(`annuity${prefix}`),
+                mpf: getNum(`mpf${prefix}`)
+            };
+        }
+
+        const pA = buildPerson('A');
+        const pB = buildPerson('B');
+        const extraA = getCheck('extraRentA');
+        const extraB = getCheck('extraRentB');
+
+        const rentSep = separateRent(pA, pB, extraA, extraB);
+        const rentJoint = computeJointRent(pA, pB, extraA, extraB);
+        const compSep = separateCompany(pA, pB);
+        const compJoint = computeJointCompany(pA, pB);
+
+        const summaryHtml = `
+            <table class="summary-table">
+                <thead><tr><th>报税策略</th><th>🏠 住宅租金扣除</th><th>🏢 公司房屋福利</th></tr></thead>
+                <tbody>
+                    <tr><td style="text-align:left; font-weight:600">分开报税 (最终税款)</td><td>${rentSep.totalBest.toLocaleString()}</td><td>${compSep.totalBest.toLocaleString()}</td></tr>
+                    <tr><td style="text-align:left; font-weight:600">合并报税 (最终税款)</td><td>${rentJoint.afterWaiver.toLocaleString()}</td><td>${compJoint.afterWaiver.toLocaleString()}</td></tr>
+                    <tr><td style="text-align:left; font-weight:600">宽减前税款</td><td>分开:${rentSep.totalBefore.toLocaleString()} / 合并:${rentJoint.bestBeforeWaiver.toLocaleString()}</td><td>分开:${compSep.totalBefore.toLocaleString()} / 合并:${compJoint.bestBeforeWaiver.toLocaleString()}</td></tr>
+                </tbody>
+            </table>
+        `;
+
+        const allBest = [
+            { name: "租金扣除+分开", val: rentSep.totalBest },
+            { name: "租金扣除+合并", val: rentJoint.afterWaiver },
+            { name: "公司福利+分开", val: compSep.totalBest },
+            { name: "公司福利+合并", val: compJoint.afterWaiver }
+        ];
+        allBest.sort((a,b)=>a.val-b.val);
+        const bestOption = allBest[0];
+
+        let details = `<div style="margin-top:20px;"><h3>📖 详细计算过程</h3></div>`;
+        details += `<details><summary>🔍 租金扣除 - 分开报税明细</summary>${renderDetailCard("配偶 A", rentSep.taxA)}${renderDetailCard("配偶 B", rentSep.taxB)}</details>`;
+        details += `<details><summary>🔍 租金扣除 - 合并报税明细</summary>${renderJointCard("合并评税", rentJoint)}</details>`;
+        details += `<details><summary>🔍 公司福利 - 分开报税明细</summary>${renderDetailCard("配偶 A", compSep.taxA)}${renderDetailCard("配偶 B", compSep.taxB)}</details>`;
+        details += `<details><summary>🔍 公司福利 - 合并报税明细</summary>${renderJointCard("合并评税", compJoint)}</details>`;
+
+        const rentDedA = getRentDeduction(pA.monthlyRent, extraA);
+        const rentDedB = getRentDeduction(pB.monthlyRent, extraB);
+        const note = `<div class="note">
+            💡 <strong>参数解读</strong><br>
+            • 租金扣除: A ${rentDedA.toLocaleString()} / B ${rentDedB.toLocaleString()}<br>
+            • 子女免税额: A 基础${pA.childCount*130000} + 出生额外${pA.childBorn && pA.childCount>0 ? pA.childCount*130000 : 0}<br>
+            • 父母免税额: A 55-59:${pA.parent55Count}名(同住+${pA.parent55Live?pA.parent55Count*25000:0}) 60+:${pA.parent60Count}名(同住+${pA.parent60Live?pA.parent60Count*50000:0})<br>
+            • 伤残受养人: A ${pA.disabledCount}名 × 75000<br>
+            ✅ <strong>最佳策略:</strong> ${bestOption.name} 最优应缴税额 <strong>${bestOption.val.toLocaleString()} HKD</strong>。
+        </div>`;
+
+        document.getElementById('resultsPanel').innerHTML = summaryHtml + details + note;
+        document.getElementById('resultsPanel').style.display = 'block';
+        document.getElementById('resultsPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+</script>
+</body>
+</html>
