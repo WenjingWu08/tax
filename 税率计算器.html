@@ -924,17 +924,47 @@
         document.getElementById('regionFRBtn').classList.toggle('active', r === 'fr');
         // If switching to France, hide all non-France UI blocks and show only the France panel + region nav.
         const frPanel = document.getElementById('frPanel');
-        const hideSelectors = ['.grid-2col', '.mode-selector', '.action-bar', '.reverse-calc-section', '#comparisonBar', 'h1', '.sub', '#resultsPanel', 'footer'];
+        const hideSelectors = ['.grid-2col', '.mode-selector', '.action-bar', '.reverse-calc-section', 'h1', '.sub', '#resultsPanel', 'footer'];
         if (r === 'fr') {
             // hide non-France blocks
             hideSelectors.forEach(sel => document.querySelectorAll(sel).forEach(el => el.classList.add('hidden')));
             // show France panel
             if (frPanel) frPanel.classList.remove('hidden');
+            // attach listeners to France inputs to update comparison
+            ['frIncome','frSpouse','frChildren','frSocial','frProfExpMethod','frProfExpActual','frProfExpCap','frHalfPartCap','frTaxCredits','hkdToEur'].forEach(id=>{
+                const el=document.getElementById(id);
+                if(!el) return;
+                el.addEventListener('input', computeFranceVsHK);
+                el.addEventListener('change', computeFranceVsHK);
+            });
+            // initial compute
+            computeFranceVsHK();
         } else {
             // restore visibility
             hideSelectors.forEach(sel => document.querySelectorAll(sel).forEach(el => el.classList.remove('hidden')));
             if (frPanel) frPanel.classList.add('hidden');
         }
+    }
+
+    // Compute France tax using FR panel inputs and a simple HK estimate for same total income
+    function computeFranceVsHK() {
+        const incomeHKD = parseFloat(document.getElementById('frIncome')?.value) || 0;
+        const spouse = document.getElementById('frSpouse')?.value === '1';
+        const children = parseInt(document.getElementById('frChildren')?.value) || 0;
+        const frRes = calcFranceHouseholdTax(incomeHKD, { spouse: spouse, childCount: children });
+
+        // Build a simple HK person using same total income (single-person estimate)
+        const p = { income: incomeHKD, monthlyRent: 0, childCount: children, childBorn: false, parent55Count:0, parent55Live:false, parent60Count:0, parent60Live:false, disabledCount:0, selfEdu:0, elderlyCare:0, donation:0, vhis:0, annuity:0, mpf:18000 };
+        const assessRent = getAssessableBeforeOtherRent(p.income, p.monthlyRent, false);
+        const taxRent = computeIndividualTax(assessRent, getAllowances(p), getOtherDeductions(p, assessRent), p.mpf).afterWaiver;
+        const assessComp = getAssessableBeforeOtherCompany(p.income, p.monthlyRent);
+        const taxComp = computeIndividualTax(assessComp, getAllowances(p), getOtherDeductions(p, assessComp), p.mpf).afterWaiver;
+        const hkBest = Math.min(taxRent, taxComp);
+
+        document.getElementById('comp-hk').textContent = `香港: HKD ${hkBest.toLocaleString()}`;
+        document.getElementById('comp-fr').textContent = `法国: €${frRes.totalTaxEUR.toLocaleString()} / HKD ${frRes.totalTaxHKD.toLocaleString()}`;
+        const diff = frRes.totalTaxHKD - hkBest;
+        document.getElementById('comp-diff').textContent = `差异: HKD ${diff.toLocaleString()} ${diff>0? '(法国更高)':'(香港更高或相同)'} `;
     }
 
     // 法国税率配置（按年度可扩展）。默认添加 2025 年近似税阶。
