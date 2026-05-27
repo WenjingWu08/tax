@@ -196,6 +196,36 @@
             margin-bottom: 24px;
             justify-content: center;
         }
+        .region-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            position: absolute;
+            left: 16px;
+            top: 40px;
+        }
+        .region-btn {
+            padding: 8px 12px;
+            border-radius: 12px;
+            border: 1px solid #cfeee0;
+            background: white;
+            cursor: pointer;
+            color: #145c3a;
+            font-weight:600;
+        }
+        .region-btn.active { background:#2c9e6b; color:white; }
+        .comparison-bar {
+            display:flex;
+            gap:16px;
+            justify-content:center;
+            align-items:center;
+            background:#eaf6ef;
+            padding:10px 14px;
+            border-radius:12px;
+            margin-bottom:14px;
+            font-weight:700;
+            color:#0f3b2c;
+        }
         .mode-btn {
             padding: 12px 24px;
             border: 2px solid #2c9e6b;
@@ -243,6 +273,18 @@
 <body>
 <div class="container">
     <div class="main-card">
+        <div class="region-nav" aria-hidden="false">
+            <button class="region-btn active" id="regionHKBtn" onclick="switchRegion('hk')">香港</button>
+            <button class="region-btn" id="regionFRBtn" onclick="switchRegion('fr')">法国</button>
+        </div>
+
+        <div id="comparisonBar" class="comparison-bar">
+            <div id="comp-hk">香港: —</div>
+            <div id="comp-fr">法国: —</div>
+            <div id="comp-diff">差异: —</div>
+            <div style="margin-left:12px; display:flex; gap:8px; align-items:center;"><label style="font-weight:600; font-size:0.85rem; color:#0f3b2c;">HKD→EUR</label><input id="hkdToEur" type="number" value="0.11" step="0.001" style="width:80px; padding:6px 8px; border-radius:8px; border:1px solid #cfeee0;"> </div>
+        </div>
+
         <h1>🧾 香港薪俸税计算器 2025/26</h1>
         
         <!-- 模式选择 -->
@@ -343,6 +385,9 @@
                     <input type="number" id="reverseChildCount" value="0" min="0">
                 </div>
                 <div class="form-group">
+                    <div class="inline-check"><input type="checkbox" id="reverseChildBorn"> <label>☑ 子女在本课税年度出生（有额外免税额）</label></div>
+                </div>
+                <div class="form-group">
                     <label>每月租金 (HKD)</label>
                     <input type="number" id="reverseRent" value="0" min="0">
                 </div>
@@ -353,6 +398,14 @@
                 <div class="form-group">
                     <label>MPF扣减 (HKD)</label>
                     <input type="number" id="reverseMPF" value="18000" min="0">
+                </div>
+                <div class="form-group">
+                    <label>反推方案</label>
+                    <select id="reverseMode">
+                        <option value="both">同时比较（取较低）</option>
+                        <option value="rent">仅按住宅租金扣除</option>
+                        <option value="company">仅按公司房屋福利</option>
+                    </select>
                 </div>
             </div>
             
@@ -714,7 +767,318 @@
         }
         
         document.getElementById('resultsPanel').style.display = 'block';
+
+        // --- 同步计算并显示法国税负估算（简单近似模型，供比对用）
+        // France breakdown and comparison
+        let frRes;
+        if (currentMode === 'single') {
+            frRes = calcFranceHouseholdTax(pA.income, { spouse:false, childCount: pA.childCount || 0 });
+        } else {
+            const totalIncome = pA.income + pB.income;
+            const totalChildren = (pA.childCount || 0) + (pB.childCount || 0);
+            frRes = calcFranceHouseholdTax(totalIncome, { spouse:true, childCount: totalChildren });
+        }
+
+        const hkBest = currentMode === 'single' ? Math.min(taxA.afterWaiver, compTaxA.afterWaiver) : Math.min(rentSep.totalBest, rentJoint.afterWaiver, compSep.totalBest, compJoint.afterWaiver);
+        document.getElementById('comp-hk').textContent = `香港: HKD ${hkBest.toLocaleString()}`;
+        document.getElementById('comp-fr').textContent = `法国: €${frRes.totalTaxEUR.toLocaleString()} / HKD ${frRes.totalTaxHKD.toLocaleString()}`;
+        const diff = frRes.totalTaxHKD - hkBest;
+        document.getElementById('comp-diff').textContent = `差异: HKD ${diff.toLocaleString()} ${diff>0? '(法国更高)':'(香港更高或相同)'} `;
+
+        // 添加法国详细分解到结果面板
+        const frDetailHtml = renderFranceDetail(currentMode === 'single' ? pA.income : (pA.income + pB.income), { spouse: currentMode === 'single' ? false : true, childCount: currentMode === 'single' ? (pA.childCount||0) : ((pA.childCount||0)+(pB.childCount||0)) });
+        document.getElementById('resultsPanel').innerHTML += frDetailHtml;
+
         document.getElementById('resultsPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // ========== 反向推算收入 ==========
+    function estimateIncomeForTax(targetTax, opts) {
+        // opts: { rentMonthly, childCount, otherDed, mpf, range: {min,max} }
+        const tol = 20; // HKD tolerance (reduced for finer estimate)
+        let low = opts.range?.min || 0;
+        let high = opts.range?.max || 100000000; // 100M default
+
+        // quick bounds: if targetTax is zero, return zero
+        if (targetTax <= 0) return { income: 0, taxAtIncome: 0 };
+
+        for (let i = 0; i < 60; i++) {
+            const mid = Math.floor((low + high) / 2);
+
+            // build temporary person object
+            const p = {
+                income: mid,
+                monthlyRent: opts.rentMonthly || 0,
+                childCount: opts.childCount || 0,
+                childBorn: opts.childBorn || false,
+                parent55Count: 0, parent55Live: false,
+                parent60Count: 0, parent60Live: false,
+                disabledCount: 0,
+                selfEdu: 0, elderlyCare: 0, donation: 0, vhis: 0, annuity: 0,
+                mpf: opts.mpf || 0
+            };
+
+            const assessRent = getAssessableBeforeOtherRent(p.income, p.monthlyRent, false);
+            const taxRent = computeIndividualTax(assessRent, getAllowances(p), opts.otherDed || 0, p.mpf).afterWaiver;
+
+            const assessComp = getAssessableBeforeOtherCompany(p.income, p.monthlyRent);
+            const taxComp = computeIndividualTax(assessComp, getAllowances(p), opts.otherDed || 0, p.mpf).afterWaiver;
+
+            // choose according to mode
+            let taxAtMid;
+            if (opts.mode === 'rent') taxAtMid = taxRent;
+            else if (opts.mode === 'company') taxAtMid = taxComp;
+            else taxAtMid = Math.min(taxRent, taxComp);
+
+            if (Math.abs(taxAtMid - targetTax) <= tol) {
+                return { income: mid, taxAtIncome: taxAtMid, taxRent, taxComp };
+            }
+
+            if (taxAtMid > targetTax) {
+                high = mid;
+            } else {
+                low = mid;
+            }
+        }
+
+        const approx = Math.floor((low + high) / 2);
+        const p2 = { income: approx, monthlyRent: opts.rentMonthly || 0, childCount: opts.childCount || 0, childBorn: opts.childBorn || false, parent55Count:0, parent55Live:false, parent60Count:0, parent60Live:false, disabledCount:0, selfEdu:0, elderlyCare:0, donation:0, vhis:0, annuity:0, mpf: opts.mpf || 0 };
+        const taxRent2 = computeIndividualTax(getAssessableBeforeOtherRent(p2.income, p2.monthlyRent, false), getAllowances(p2), opts.otherDed || 0, p2.mpf).afterWaiver;
+        const taxComp2 = computeIndividualTax(getAssessableBeforeOtherCompany(p2.income, p2.monthlyRent), getAllowances(p2), opts.otherDed || 0, p2.mpf).afterWaiver;
+        const chosen = opts.mode === 'rent' ? taxRent2 : (opts.mode === 'company' ? taxComp2 : Math.min(taxRent2, taxComp2));
+        return { income: approx, taxAtIncome: chosen, taxRent: taxRent2, taxComp: taxComp2 };
+    }
+
+    function reverseCalculate() {
+        const targetTax = parseFloat(document.getElementById('targetTax').value) || 0;
+        const childCount = parseInt(document.getElementById('reverseChildCount').value) || 0;
+        const childBorn = document.getElementById('reverseChildBorn')?.checked || false;
+        const rentMonthly = parseFloat(document.getElementById('reverseRent').value) || 0;
+        const otherDed = parseFloat(document.getElementById('reverseOtherDed').value) || 0;
+        const mpf = parseFloat(document.getElementById('reverseMPF').value) || 0;
+        const rangeSel = document.getElementById('incomeRange').value;
+
+        const range = { min: 0, max: 100000000 };
+        if (rangeSel === 'below5m') range.max = 5000000;
+        if (rangeSel === 'above5m') range.min = 5000000;
+
+        const mode = document.getElementById('reverseMode')?.value || 'both';
+        const opts = { rentMonthly, childCount, childBorn, otherDed, mpf, range, mode };
+
+        const res = estimateIncomeForTax(targetTax, opts);
+
+        const out = document.getElementById('reverseResult');
+        out.style.display = 'block';
+        out.innerHTML = `<div><strong>估计年收入:</strong> HKD ${res.income.toLocaleString()}</div>` +
+                        `<div>基于假设：子女人数 ${childCount}, 每月租金 HKD ${rentMonthly.toLocaleString()}, 其他扣除 HKD ${otherDed.toLocaleString()}, MPF HKD ${mpf.toLocaleString()}</div>` +
+                        `<hr>` +
+                        `<div>按住宅租金方案估计税款: HKD ${res.taxRent.toLocaleString()}</div>` +
+                        `<div>按公司福利方案估计税款: HKD ${res.taxComp.toLocaleString()}</div>` +
+                        `<div style="margin-top:8px; color:#555; font-size:0.9rem;">注意：为近似估算，实际结果可能因更多扣除项或具体条件不同而异。</div>`;
+        out.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // ========== Reverse tests and diagnostics ==========
+    function runReverseTests() {
+        const tests = [
+            { target: 0, opts: { rentMonthly:0, childCount:0, childBorn:false, otherDed:0, mpf:18000, mode:'both', range:{min:0,max:5000000} } },
+            { target: 5000, opts: { rentMonthly:5000, childCount:1, childBorn:false, otherDed:0, mpf:18000, mode:'both', range:{min:0,max:2000000} } },
+            { target: 30000, opts: { rentMonthly:10000, childCount:0, childBorn:false, otherDed:5000, mpf:18000, mode:'rent', range:{min:0,max:5000000} } },
+            { target: 150000, opts: { rentMonthly:20000, childCount:2, childBorn:true, otherDed:10000, mpf:18000, mode:'both', range:{min:0,max:10000000} } },
+            { target: 800000, opts: { rentMonthly:30000, childCount:0, childBorn:false, otherDed:0, mpf:18000, mode:'company', range:{min:5000000,max:20000000} } }
+        ];
+
+        let outDiv = document.getElementById('reverseTestOutput');
+        if (!outDiv) {
+            outDiv = document.createElement('div');
+            outDiv.id = 'reverseTestOutput';
+            outDiv.style.margin = '18px 0';
+            outDiv.style.padding = '12px';
+            outDiv.style.background = '#fff';
+            outDiv.style.borderRadius = '12px';
+            outDiv.style.borderLeft = '4px solid #2c9e6b';
+            document.querySelector('.main-card').insertBefore(outDiv, document.querySelector('footer'));
+        }
+
+        outDiv.innerHTML = '<h4 style="margin-top:0">反向推算示例测试结果</h4>';
+
+        for (let t of tests) {
+            const r = estimateIncomeForTax(t.target, t.opts);
+            const row = document.createElement('div');
+            row.style.marginBottom = '8px';
+            row.innerHTML = `<strong>目标税款:</strong> ${t.target.toLocaleString()} → <strong>估计年收入:</strong> HKD ${r.income.toLocaleString()} ` +
+                            `(mode: ${t.opts.mode || 'both'}, 子女出生: ${t.opts.childBorn? '是':'否'}) ` +
+                            `(租金税款: ${r.taxRent?.toLocaleString() || '—'}, 公司税款: ${r.taxComp?.toLocaleString() || '—'})`;
+            outDiv.appendChild(row);
+            console.log('ReverseTest', t, r);
+        }
+    }
+
+    window.addEventListener('load', function() { runReverseTests(); try { computeAll(); } catch (e) { console.error('computeAll error on load', e); } });
+
+    // ========== 区域切换与法国税率估算 ==========
+    let currentRegion = 'hk';
+    function switchRegion(r) {
+        currentRegion = r;
+        document.getElementById('regionHKBtn').classList.toggle('active', r === 'hk');
+        document.getElementById('regionFRBtn').classList.toggle('active', r === 'fr');
+        // If switching to France, hide all non-France UI blocks and show only the France panel + region nav.
+        const frPanel = document.getElementById('frPanel');
+        const hideSelectors = ['.grid-2col', '.mode-selector', '.action-bar', '.reverse-calc-section', '#comparisonBar', 'h1', '.sub', '#resultsPanel', 'footer'];
+        if (r === 'fr') {
+            // hide non-France blocks
+            hideSelectors.forEach(sel => document.querySelectorAll(sel).forEach(el => el.classList.add('hidden')));
+            // show France panel
+            if (frPanel) frPanel.classList.remove('hidden');
+        } else {
+            // restore visibility
+            hideSelectors.forEach(sel => document.querySelectorAll(sel).forEach(el => el.classList.remove('hidden')));
+            if (frPanel) frPanel.classList.add('hidden');
+        }
+    }
+
+    // 法国税率配置（按年度可扩展）。默认添加 2025 年近似税阶。
+    const FR_YEAR_DATA = {
+        2025: {
+            brackets: [
+                { limit: 10777, rate: 0 },
+                { limit: 27478, rate: 0.11 },
+                { limit: 78570, rate: 0.30 },
+                { limit: 168994, rate: 0.41 },
+                { limit: Infinity, rate: 0.45 }
+            ],
+            // 推荐默认合并社保（CSG+CRDS 等）近似总率（可在 UI 调整，输入为 %）
+            // NOTE: editable default used for convenience; replace with official value when available
+            defaultSocialPct: 9.7
+        }
+    };
+    // 活动社保率（decimal），初始化为 2025 默认
+    let FR_SOCIAL = FR_YEAR_DATA[2025].defaultSocialPct / 100;
+
+    function calcFranceProgressive(amount, brackets) {
+        if (amount <= 0) return 0;
+        let tax = 0, remain = amount, prevLimit = 0;
+        for (let b of brackets) {
+            const chunk = Math.min(remain, b.limit - prevLimit);
+            if (chunk > 0) tax += chunk * b.rate;
+            remain -= chunk;
+            prevLimit = b.limit;
+            if (remain <= 0) break;
+        }
+        return tax;
+    }
+
+    function calcFranceHouseholdTax(totalIncomeHKD, opts) {
+        // Returns breakdown object in both EUR and HKD
+        const year = parseInt(document.getElementById('frYear')?.value) || 2025;
+        const cfg = FR_YEAR_DATA[year] || FR_YEAR_DATA[2025];
+        const brackets = cfg.brackets;
+
+        const rate = parseFloat(document.getElementById('hkdToEur')?.value) || 0.11;
+        const totalIncomeEUR = (totalIncomeHKD || 0) * rate;
+
+        // professional expenses: standard 10% or actual (EUR)
+        const profMethod = document.getElementById('frProfExpMethod')?.value || 'standard';
+        let profDeductionEUR = 0;
+        if (profMethod === 'standard') {
+            profDeductionEUR = totalIncomeEUR * 0.10;
+        } else {
+            profDeductionEUR = parseFloat(document.getElementById('frProfExpActual')?.value) || 0;
+        }
+        const profCap = parseFloat(document.getElementById('frProfExpCap')?.value) || Infinity;
+        profDeductionEUR = Math.min(profDeductionEUR, profCap);
+
+        // Family parts (quotient)
+        let parts = opts.spouse ? 2 : 1;
+        const children = opts.childCount || 0;
+        if (children >= 1) parts += 0.5;
+        if (children >= 2) parts += 0.5;
+        if (children > 2) parts += (children - 2) * 1;
+
+        // Taxable income for progressive scale = (totalIncomeEUR - profDeduction) / parts
+        const taxableAfterProf = Math.max(0, totalIncomeEUR - profDeductionEUR);
+        const shareEUR = taxableAfterProf / Math.max(parts, 1);
+        const taxPerShareEUR = calcFranceProgressive(shareEUR, brackets);
+        let progressiveTaxEUR = taxPerShareEUR * parts;
+
+        // Apply family-quotient plafonnement per half-part if configured
+        const halfPartCap = parseFloat(document.getElementById('frHalfPartCap')?.value) || Infinity; // EUR per half-part
+        if (isFinite(halfPartCap) && parts > (opts.spouse ? 2 : 1)) {
+            const baselineParts = opts.spouse ? 2 : 1;
+            const extraParts = parts - baselineParts;
+            const numberHalfParts = Math.round(extraParts * 2); // each 0.5 = half-part
+            const taxWithoutQuotient = calcFranceProgressive(taxableAfterProf, brackets); // tax on full taxable income
+            const advantage = taxWithoutQuotient - progressiveTaxEUR;
+            const capTotal = numberHalfParts * halfPartCap;
+            if (advantage > capTotal) {
+                progressiveTaxEUR = taxWithoutQuotient - capTotal;
+            }
+        }
+
+        // Social contributions (approx): user-provided percentage (input in %)
+        FR_SOCIAL = parseFloat(document.getElementById('frSocial')?.value) / 100 || FR_SOCIAL;
+        const socialEUR = totalIncomeEUR * FR_SOCIAL;
+
+        // Tax credits (EUR)
+        const taxCreditsEUR = parseFloat(document.getElementById('frTaxCredits')?.value) || 0;
+
+        let totalTaxEUR = Math.max(0, progressiveTaxEUR + socialEUR - taxCreditsEUR);
+        const totalTaxHKD = Math.round(totalTaxEUR / rate);
+
+        return {
+            year, rate, parts, shareEUR, progressiveTaxEUR, socialEUR, taxCreditsEUR,
+            profDeductionEUR: Math.round(profDeductionEUR), halfPartCap,
+            totalTaxEUR: Math.round(totalTaxEUR), totalTaxHKD
+        };
+    }
+
+    // 创建法国面板（简易）
+    (function createFrancePanel(){
+        const frPanel = document.createElement('div');
+        frPanel.id = 'frPanel';
+        frPanel.className = 'hidden';
+        frPanel.style.marginTop = '12px';
+        frPanel.innerHTML = `
+            <h2>🇫🇷 法国个人税估算（2025，扩展选项）</h2>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+                <div><label>年收入 (HKD)</label><input type="number" id="frIncome" value="500000"></div>
+                <div><label>税年</label><select id="frYear"><option value="2025">2025</option></select></div>
+                <div><label>配偶同报?</label><select id="frSpouse"><option value="0">否</option><option value="1">是</option></select></div>
+                <div><label>子女人数</label><input type="number" id="frChildren" value="0" min="0"></div>
+                <div><label>社会性缴款率 (%)</label><input type="number" id="frSocial" value="9.5"></div>
+                <div><label>税收抵免合计 (EUR)</label><input type="number" id="frTaxCredits" value="0"></div>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; align-items:end;">
+                <div>
+                    <label>专业费用处理</label>
+                    <select id="frProfExpMethod">
+                        <option value="standard">标准 10% 扣除</option>
+                        <option value="actual">实际费用（输入 EUR）</option>
+                    </select>
+                </div>
+                <div><label>实际专业费用 (EUR)</label><input type="number" id="frProfExpActual" value="0"></div>
+                <div><label>专业费用上限 (EUR, 可空)</label><input type="number" id="frProfExpCap" placeholder="无上限"></div>
+                <div><label>家庭份额每半份上限 (EUR)</label><input type="number" id="frHalfPartCap" value="1600"></div>
+            </div>
+            <div style="display:flex; gap:12px; align-items:center;"><button class="calc-btn" onclick="(function(){const res=calcFranceHouseholdTax(parseFloat(document.getElementById('frIncome').value)||0, { spouse: document.getElementById('frSpouse').value==='1', childCount: parseInt(document.getElementById('frChildren').value)||0 }); document.getElementById('frTaxResult').innerText = res.totalTaxEUR + ' EUR / ' + res.totalTaxHKD + ' HKD';})()">计算法国估算税</button>
+            <div id="frTaxResult" style="align-self:center; font-weight:700; margin-left:8px;"></div></div>
+            <div style="margin-top:8px; font-size:0.9rem; color:#475569;">说明：法国计算使用家庭份额（quotient）规则：第1、2名子女每人+0.5份，从第3名起每人+1份。可选择专业费用标准 10% 或输入实际费用，并可输入税收抵免与每半份上限（若要精确按官方上限，请填写每半份金额）。结果以欧元税额换算回港币显示（可调 HKD→EUR 汇率）。</div>
+        `;
+        document.querySelector('.main-card').insertBefore(frPanel, document.querySelector('.main-card footer'));
+    })();
+
+    function renderFranceDetail(totalIncomeHKD, opts) {
+        const d = calcFranceHouseholdTax(totalIncomeHKD, opts);
+        return `<div class="detail-card"><h4>🇫🇷 法国估算明细</h4>
+            <div class="calc-step">• 汇率 HKD→EUR: ${d.rate}</div>
+            <div class="calc-step">• 家庭份额 (parts): ${d.parts}</div>
+            <div class="calc-step">• 每份应税收入 (EUR): €${d.shareEUR.toLocaleString()}</div>
+            <div class="calc-step">• 专业费用抵减 (EUR): €${d.profDeductionEUR.toLocaleString()}</div>
+            <div class="calc-step">• 累进税 (EUR): €${d.progressiveTaxEUR.toLocaleString()}</div>
+            <div class="calc-step">• 社会性缴款 (EUR): €${d.socialEUR.toLocaleString()}</div>
+            <div class="calc-step">• 税收抵免 (EUR): €${d.taxCreditsEUR.toLocaleString()}</div>
+            <div class="calc-step">• 法国合计税款: €${d.totalTaxEUR.toLocaleString()} ≈ HKD ${d.totalTaxHKD.toLocaleString()}</div>
+        </div>`;
     }
 </script>
 </body>
