@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
@@ -190,9 +190,53 @@
         hr {
             margin: 16px 0;
         }
+        .mode-selector {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 24px;
+            justify-content: center;
+        }
+        .mode-btn {
+            padding: 12px 24px;
+            border: 2px solid #2c9e6b;
+            background: white;
+            color: #2c9e6b;
+            border-radius: 20px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .mode-btn.active {
+            background: #2c9e6b;
+            color: white;
+        }
+        .mode-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(44, 158, 107, 0.2);
+        }
+        .hidden {
+            display: none !important;
+        }
+        .reverse-calc-section {
+            background: #f0f8f5;
+            border-radius: 20px;
+            padding: 24px;
+            margin-top: 32px;
+        }
+        .reverse-calc-section h3 {
+            color: #0f3b2c;
+            margin-top: 0;
+        }
+        .reverse-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
         @media (max-width: 800px) {
             .main-card { padding: 16px; }
             .spouse-card { padding: 16px; }
+            .reverse-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -200,6 +244,13 @@
 <div class="container">
     <div class="main-card">
         <h1>🧾 香港薪俸税计算器 2025/26</h1>
+        
+        <!-- 模式选择 -->
+        <div class="mode-selector">
+            <button class="mode-btn active" onclick="switchMode('dual')">👫 双人报税</button>
+            <button class="mode-btn" onclick="switchMode('single')">👤 单人报税</button>
+        </div>
+        
         <div class="sub">
             ✔ 分开 vs 合并报税 · 累进税率（应课税入息实额） vs 标准税率（入息净额，不减免税额）取低<br>
             ✔ 2025/26课税年度：100%税款宽减，分开报税每人上限$3,000，合并报税二人合共上限$3,000<br>
@@ -209,7 +260,7 @@
 
         <div class="grid-2col">
             <!-- 配偶 A -->
-            <div class="spouse-card">
+            <div class="spouse-card" id="spouseACard">
                 <h3>👤 配偶 A</h3>
                 <div class="form-group"><label>年收入 (HKD)</label><input type="number" id="incomeA" value="500000"></div>
                 <div class="form-group"><label>🏠 每月实际租金 (HKD)</label><input type="number" id="rentA" value="20000"></div>
@@ -238,7 +289,7 @@
             </div>
 
             <!-- 配偶 B -->
-            <div class="spouse-card">
+            <div class="spouse-card" id="spouseBCard">
                 <h3>👩‍💼 配偶 B</h3>
                 <div class="form-group"><label>年收入 (HKD)</label><input type="number" id="incomeB" value="300000"></div>
                 <div class="form-group"><label>🏠 每月实际租金 (HKD)</label><input type="number" id="rentB" value="15000"></div>
@@ -268,11 +319,74 @@
         </div>
 
         <div id="resultsPanel" style="display: none;"></div>
+        
+        <!-- 反向推算工资 -->
+        <div class="reverse-calc-section" id="reverseCalcSection" style="display: none;">
+            <h3>💰 反向推算工资</h3>
+            <p style="color: #666; margin-bottom: 16px;">根据税款、免税额和扣除项反推估计收入</p>
+            
+            <div class="reverse-grid">
+                <div class="form-group">
+                    <label>目标税款 (HKD)</label>
+                    <input type="number" id="targetTax" value="0" min="0">
+                </div>
+                <div class="form-group">
+                    <label>预计年收入范围</label>
+                    <select id="incomeRange">
+                        <option value="auto">自动估算</option>
+                        <option value="below5m">500万以下</option>
+                        <option value="above5m">500万以上</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>子女人数（免税额基础）</label>
+                    <input type="number" id="reverseChildCount" value="0" min="0">
+                </div>
+                <div class="form-group">
+                    <label>每月租金 (HKD)</label>
+                    <input type="number" id="reverseRent" value="0" min="0">
+                </div>
+                <div class="form-group">
+                    <label>其他扣除合计 (HKD)</label>
+                    <input type="number" id="reverseOtherDed" value="0" min="0">
+                </div>
+                <div class="form-group">
+                    <label>MPF扣减 (HKD)</label>
+                    <input type="number" id="reverseMPF" value="18000" min="0">
+                </div>
+            </div>
+            
+            <button class="calc-btn" onclick="reverseCalculate()" style="margin-top: 16px;">🔄 反向推算收入</button>
+            <div id="reverseResult" style="display: none; margin-top: 16px; padding: 16px; background: white; border-radius: 12px; border-left: 4px solid #2c9e6b;"></div>
+        </div>
+        
         <footer>依据2025/26课税年度免税额及宽减规则。子女出生额外免税额、父母同住额外免税额、伤残受养人均已纳入。伤残与父母免税额互斥请自行注意。</footer>
     </div>
 </div>
 
 <script>
+    // 模式控制
+    let currentMode = 'dual'; // 'dual' 或 'single'
+    
+    function switchMode(mode) {
+        currentMode = mode;
+        const spouseBCard = document.getElementById('spouseBCard');
+        const reverseSection = document.getElementById('reverseCalcSection');
+        
+        // 更新按钮状态
+        document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+        event.target.classList.add('active');
+        
+        // 显示/隐藏配偶B卡
+        spouseBCard.classList.toggle('hidden', mode === 'single');
+        
+        // 单人模式下显示反向推算
+        reverseSection.style.display = mode === 'single' ? 'block' : 'none';
+        
+        // 清空结果
+        document.getElementById('resultsPanel').style.display = 'none';
+    }
+    
     // 累进税阶
     const PROG_BRACKETS = [
         { limit: 50000, rate: 0.02 },
@@ -282,6 +396,7 @@
         { limit: Infinity, rate: 0.17 }
     ];
     const STD_RATE = 0.15;
+    const STD_RATE_OVER = 0.16;  // 2025/26超过$5,000,000部分标准税率调整为16%
     const WAIVER_CAP_SINGLE = 3000;     // 分开报税每人上限
     const WAIVER_CAP_JOINT = 3000;      // 合并报税二人合共上限
 
@@ -299,6 +414,9 @@
 
     function calcStandardTax(netIncome) {
         if (netIncome <= 0) return 0;
+        if (netIncome > 5000000) {
+            return 5000000 * STD_RATE + (netIncome - 5000000) * STD_RATE_OVER;
+        }
         return netIncome * STD_RATE;
     }
 
@@ -438,6 +556,12 @@
 
     // 渲染
     function renderDetailCard(title, taxDetail) {
+        let standardTaxDetail = `<div class="calc-step">⑧ 标准税率税款(15%): $${taxDetail.standardTax.toLocaleString()}</div>`;
+        if (taxDetail.netIncomeForStandard > 5000000) {
+            const under5M = 5000000 * 0.15;
+            const over5M = (taxDetail.netIncomeForStandard - 5000000) * 0.16;
+            standardTaxDetail = `<div class="calc-step">⑧ 标准税率税款: 500万以下 $${under5M.toLocaleString()} (15%) + 超额 $${over5M.toLocaleString()} (16%) = $${taxDetail.standardTax.toLocaleString()}</div>`;
+        }
         return `<div class="detail-card"><h4>📌 ${title}</h4>
             <div class="calc-step">① 应评税入息: $${taxDetail.assessableBeforeOther.toLocaleString()}</div>
             <div class="calc-step">② 免税额: $${taxDetail.allowances.toLocaleString()}</div>
@@ -446,13 +570,19 @@
             <div class="calc-step">⑤ 应课税入息实额 = ①−②−③−④ = $${taxDetail.chargeable.toLocaleString()}</div>
             <div class="calc-step">⑥ 累进税率税款: $${taxDetail.progressiveTax.toLocaleString()}</div>
             <div class="calc-step">⑦ 入息净额(标准税基) = ①−③−④ = $${taxDetail.netIncomeForStandard.toLocaleString()}</div>
-            <div class="calc-step">⑧ 标准税率税款(15%): $${taxDetail.standardTax.toLocaleString()}</div>
+            ${standardTaxDetail}
             <div class="calc-step">⑨ 宽减前税款(取较低): $${taxDetail.bestBeforeWaiver.toLocaleString()}</div>
             <div class="calc-step">⑩ 分开报税宽减(上限$3,000/人): 减 ${Math.min(taxDetail.bestBeforeWaiver,3000).toLocaleString()} → <strong>最终: $${taxDetail.afterWaiver.toLocaleString()}</strong></div>
         </div>`;
     }
 
     function renderJointCard(title, jointData) {
+        let standardTaxDetail = `<div class="calc-step">⑧ 标准税率税款(15%): $${jointData.standardTax.toLocaleString()}</div>`;
+        if (jointData.netIncomeForStandard > 5000000) {
+            const under5M = 5000000 * 0.15;
+            const over5M = (jointData.netIncomeForStandard - 5000000) * 0.16;
+            standardTaxDetail = `<div class="calc-step">⑧ 标准税率税款: 500万以下 $${under5M.toLocaleString()} (15%) + 超额 $${over5M.toLocaleString()} (16%) = $${jointData.standardTax.toLocaleString()}</div>`;
+        }
         return `<div class="detail-card"><h4>📌 ${title}</h4>
             <div class="calc-step">① 双方应评税入息总额: $${jointData.totalAssess.toLocaleString()}</div>
             <div class="calc-step">② 免税额总额: $${jointData.allowancesTotal.toLocaleString()}</div>
@@ -461,7 +591,7 @@
             <div class="calc-step">⑤ 应课税入息实额 = ①−②−③−④ = $${jointData.chargeable.toLocaleString()}</div>
             <div class="calc-step">⑥ 累进税率税款: $${jointData.progressiveTax.toLocaleString()}</div>
             <div class="calc-step">⑦ 入息净额(标准税基) = ①−③−④ = $${jointData.netIncomeForStandard.toLocaleString()}</div>
-            <div class="calc-step">⑧ 标准税率税款(15%): $${jointData.standardTax.toLocaleString()}</div>
+            ${standardTaxDetail}
             <div class="calc-step">⑨ 宽减前税款(取较低): $${jointData.bestBeforeWaiver.toLocaleString()}</div>
             <div class="calc-step">⑩ 合并评税宽减(二人合共$3,000): 减 ${Math.min(jointData.bestBeforeWaiver,3000).toLocaleString()} → <strong>最终: $${jointData.afterWaiver.toLocaleString()}</strong></div>
             <div class="calc-step warning">⚠️ 合并报税宽减上限为二人合共 $3,000，不是每人 $1,500。</div>
@@ -494,53 +624,95 @@
         }
 
         const pA = buildPerson('A');
-        const pB = buildPerson('B');
+        const pB = currentMode === 'single' ? null : buildPerson('B');
         const extraA = getCheck('extraRentA');
-        const extraB = getCheck('extraRentB');
+        const extraB = currentMode === 'single' ? false : getCheck('extraRentB');
 
-        const rentSep = separateRent(pA, pB, extraA, extraB);
-        const rentJoint = computeJointRent(pA, pB, extraA, extraB);
-        const compSep = separateCompany(pA, pB);
-        const compJoint = computeJointCompany(pA, pB);
+        if (currentMode === 'single') {
+            // 单人模式
+            const assessA = getAssessableBeforeOtherRent(pA.income, pA.monthlyRent, extraA);
+            const taxA = computeIndividualTax(assessA, getAllowances(pA), getOtherDeductions(pA, assessA), pA.mpf);
+            
+            const compAssessA = getAssessableBeforeOtherCompany(pA.income, pA.monthlyRent);
+            const compTaxA = computeIndividualTax(compAssessA, getAllowances(pA), getOtherDeductions(pA, compAssessA), pA.mpf);
 
-        const summaryHtml = `
-            <table class="summary-table">
-                <thead><tr><th>报税策略</th><th>🏠 住宅租金扣除</th><th>🏢 公司房屋福利</th></tr></thead>
-                <tbody>
-                    <tr><td style="text-align:left; font-weight:600">分开报税 (最终税款)</td><td>${rentSep.totalBest.toLocaleString()}</td><td>${compSep.totalBest.toLocaleString()}</td></tr>
-                    <tr><td style="text-align:left; font-weight:600">合并报税 (最终税款)</td><td>${rentJoint.afterWaiver.toLocaleString()}</td><td>${compJoint.afterWaiver.toLocaleString()}</td></tr>
-                    <tr><td style="text-align:left; font-weight:600">宽减前税款</td><td>分开:${rentSep.totalBefore.toLocaleString()} / 合并:${rentJoint.bestBeforeWaiver.toLocaleString()}</td><td>分开:${compSep.totalBefore.toLocaleString()} / 合并:${compJoint.bestBeforeWaiver.toLocaleString()}</td></tr>
-                </tbody>
-            </table>
-        `;
+            const summaryHtml = `
+                <table class="summary-table">
+                    <thead><tr><th>报税策略</th><th>🏠 住宅租金扣除</th><th>🏢 公司房屋福利</th></tr></thead>
+                    <tbody>
+                        <tr><td style="text-align:left; font-weight:600">最终税款</td><td>${taxA.afterWaiver.toLocaleString()}</td><td>${compTaxA.afterWaiver.toLocaleString()}</td></tr>
+                        <tr><td style="text-align:left; font-weight:600">宽减前税款</td><td>${taxA.bestBeforeWaiver.toLocaleString()}</td><td>${compTaxA.bestBeforeWaiver.toLocaleString()}</td></tr>
+                    </tbody>
+                </table>
+            `;
 
-        const allBest = [
-            { name: "租金扣除+分开", val: rentSep.totalBest },
-            { name: "租金扣除+合并", val: rentJoint.afterWaiver },
-            { name: "公司福利+分开", val: compSep.totalBest },
-            { name: "公司福利+合并", val: compJoint.afterWaiver }
-        ];
-        allBest.sort((a,b)=>a.val-b.val);
-        const bestOption = allBest[0];
+            const bestOption = taxA.afterWaiver < compTaxA.afterWaiver 
+                ? { name: "租金扣除", val: taxA.afterWaiver }
+                : { name: "公司房屋福利", val: compTaxA.afterWaiver };
 
-        let details = `<div style="margin-top:20px;"><h3>📖 详细计算过程</h3></div>`;
-        details += `<details><summary>🔍 租金扣除 - 分开报税明细</summary>${renderDetailCard("配偶 A", rentSep.taxA)}${renderDetailCard("配偶 B", rentSep.taxB)}</details>`;
-        details += `<details><summary>🔍 租金扣除 - 合并报税明细</summary>${renderJointCard("合并评税", rentJoint)}</details>`;
-        details += `<details><summary>🔍 公司福利 - 分开报税明细</summary>${renderDetailCard("配偶 A", compSep.taxA)}${renderDetailCard("配偶 B", compSep.taxB)}</details>`;
-        details += `<details><summary>🔍 公司福利 - 合并报税明细</summary>${renderJointCard("合并评税", compJoint)}</details>`;
+            let details = `<div style="margin-top:20px;"><h3>📖 详细计算过程</h3></div>`;
+            details += `<details><summary>🔍 租金扣除方案</summary>${renderDetailCard("个人税款计算", taxA)}</details>`;
+            details += `<details><summary>🔍 公司房屋福利方案</summary>${renderDetailCard("个人税款计算", compTaxA)}</details>`;
 
-        const rentDedA = getRentDeduction(pA.monthlyRent, extraA);
-        const rentDedB = getRentDeduction(pB.monthlyRent, extraB);
-        const note = `<div class="note">
-            💡 <strong>参数解读</strong><br>
-            • 租金扣除: A ${rentDedA.toLocaleString()} / B ${rentDedB.toLocaleString()}<br>
-            • 子女免税额: A 基础${pA.childCount*130000} + 出生额外${pA.childBorn && pA.childCount>0 ? pA.childCount*130000 : 0}<br>
-            • 父母免税额: A 55-59:${pA.parent55Count}名(同住+${pA.parent55Live?pA.parent55Count*25000:0}) 60+:${pA.parent60Count}名(同住+${pA.parent60Live?pA.parent60Count*50000:0})<br>
-            • 伤残受养人: A ${pA.disabledCount}名 × 75000<br>
-            ✅ <strong>最佳策略:</strong> ${bestOption.name} 最优应缴税额 <strong>${bestOption.val.toLocaleString()} HKD</strong>。
-        </div>`;
+            const rentDedA = getRentDeduction(pA.monthlyRent, extraA);
+            const note = `<div class="note">
+                💡 <strong>参数解读</strong><br>
+                • 租金扣除: ${rentDedA.toLocaleString()}<br>
+                • 子女免税额: 基础${pA.childCount*130000} + 出生额外${pA.childBorn && pA.childCount>0 ? pA.childCount*130000 : 0}<br>
+                • 父母免税额: 55-59:${pA.parent55Count}名(同住+${pA.parent55Live?pA.parent55Count*25000:0}) 60+:${pA.parent60Count}名(同住+${pA.parent60Live?pA.parent60Count*50000:0})<br>
+                • 伤残受养人: ${pA.disabledCount}名 × 75000<br>
+                ✅ <strong>最佳策略:</strong> ${bestOption.name} 最优应缴税额 <strong>${bestOption.val.toLocaleString()} HKD</strong>。
+            </div>`;
 
-        document.getElementById('resultsPanel').innerHTML = summaryHtml + details + note;
+            document.getElementById('resultsPanel').innerHTML = summaryHtml + details + note;
+            document.getElementById('resultsPanel').style.display = 'block';
+        } else {
+            // 双人模式
+            const rentSep = separateRent(pA, pB, extraA, extraB);
+            const rentJoint = computeJointRent(pA, pB, extraA, extraB);
+            const compSep = separateCompany(pA, pB);
+            const compJoint = computeJointCompany(pA, pB);
+
+            const summaryHtml = `
+                <table class="summary-table">
+                    <thead><tr><th>报税策略</th><th>🏠 住宅租金扣除</th><th>🏢 公司房屋福利</th></tr></thead>
+                    <tbody>
+                        <tr><td style="text-align:left; font-weight:600">分开报税 (最终税款)</td><td>${rentSep.totalBest.toLocaleString()}</td><td>${compSep.totalBest.toLocaleString()}</td></tr>
+                        <tr><td style="text-align:left; font-weight:600">合并报税 (最终税款)</td><td>${rentJoint.afterWaiver.toLocaleString()}</td><td>${compJoint.afterWaiver.toLocaleString()}</td></tr>
+                        <tr><td style="text-align:left; font-weight:600">宽减前税款</td><td>分开:${rentSep.totalBefore.toLocaleString()} / 合并:${rentJoint.bestBeforeWaiver.toLocaleString()}</td><td>分开:${compSep.totalBefore.toLocaleString()} / 合并:${compJoint.bestBeforeWaiver.toLocaleString()}</td></tr>
+                    </tbody>
+                </table>
+            `;
+
+            const allBest = [
+                { name: "租金扣除+分开", val: rentSep.totalBest },
+                { name: "租金扣除+合并", val: rentJoint.afterWaiver },
+                { name: "公司福利+分开", val: compSep.totalBest },
+                { name: "公司福利+合并", val: compJoint.afterWaiver }
+            ];
+            allBest.sort((a,b)=>a.val-b.val);
+            const bestOption = allBest[0];
+
+            let details = `<div style="margin-top:20px;"><h3>📖 详细计算过程</h3></div>`;
+            details += `<details><summary>🔍 租金扣除 - 分开报税明细</summary>${renderDetailCard("配偶 A", rentSep.taxA)}${renderDetailCard("配偶 B", rentSep.taxB)}</details>`;
+            details += `<details><summary>🔍 租金扣除 - 合并报税明细</summary>${renderJointCard("合并评税", rentJoint)}</details>`;
+            details += `<details><summary>🔍 公司福利 - 分开报税明细</summary>${renderDetailCard("配偶 A", compSep.taxA)}${renderDetailCard("配偶 B", compSep.taxB)}</details>`;
+            details += `<details><summary>🔍 公司福利 - 合并报税明细</summary>${renderJointCard("合并评税", compJoint)}</details>`;
+
+            const rentDedA = getRentDeduction(pA.monthlyRent, extraA);
+            const rentDedB = getRentDeduction(pB.monthlyRent, extraB);
+            const note = `<div class="note">
+                💡 <strong>参数解读</strong><br>
+                • 租金扣除: A ${rentDedA.toLocaleString()} / B ${rentDedB.toLocaleString()}<br>
+                • 子女免税额: A 基础${pA.childCount*130000} + 出生额外${pA.childBorn && pA.childCount>0 ? pA.childCount*130000 : 0}<br>
+                • 父母免税额: A 55-59:${pA.parent55Count}名(同住+${pA.parent55Live?pA.parent55Count*25000:0}) 60+:${pA.parent60Count}名(同住+${pA.parent60Live?pA.parent60Count*50000:0})<br>
+                • 伤残受养人: A ${pA.disabledCount}名 × 75000<br>
+                ✅ <strong>最佳策略:</strong> ${bestOption.name} 最优应缴税额 <strong>${bestOption.val.toLocaleString()} HKD</strong>。
+            </div>`;
+
+            document.getElementById('resultsPanel').innerHTML = summaryHtml + details + note;
+        }
+        
         document.getElementById('resultsPanel').style.display = 'block';
         document.getElementById('resultsPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
